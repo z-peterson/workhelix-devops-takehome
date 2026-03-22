@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Workhelix DevOps — Take-Home Submission</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.0/dist/theme/night.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root { --accent: #38bdf8; --accent2: #34d399; --warn: #fb923c; }
+    .reveal .slides section { text-align: left; }
+    .reveal h1, .reveal h2 { color: var(--accent); text-transform: none; }
+    .reveal h3 { color: var(--accent2); text-transform: none; }
+    .reveal .title-slide { text-align: center; }
+    .reveal .title-slide h1 { font-size: 1.8em; }
+    .mermaid { background: transparent !important; }
+
+    /* table styles */
+    .reveal table { font-size: 0.65em; width: 100%; }
+    .reveal table th { background: #1e3a5f; color: var(--accent); padding: 6px 10px; }
+    .reveal table td { padding: 5px 10px; border-bottom: 1px solid #334155; }
+    .reveal table tr:nth-child(even) td { background: #0f172a; }
+
+    /* two-col layout */
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2em; }
+    .cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1em; }
+
+    /* pill badges */
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.55em; font-weight: 600; margin-left: 6px; vertical-align: middle; }
+    .pill-blue { background: #1e3a8a; color: var(--accent); }
+    .pill-green { background: #14532d; color: var(--accent2); }
+    .pill-orange { background: #7c2d12; color: var(--warn); }
+
+    /* code blocks */
+    .reveal pre code { font-size: 0.62em; max-height: 340px; }
+    .reveal pre { width: 100%; }
+
+    /* star card */
+    .star-card { background: #0f172a; border: 1px solid #334155; border-left: 4px solid var(--accent); padding: 0.6em 1em; border-radius: 4px; margin-bottom: 0.5em; font-size: 0.72em; }
+    .star-card .label { color: var(--accent); font-weight: 700; font-size: 0.9em; text-transform: uppercase; }
+
+    /* phase box */
+    .phase { background: #0f172a; border: 1px solid #334155; border-top: 3px solid var(--accent2); border-radius: 6px; padding: 0.7em 1em; }
+    .phase h4 { color: var(--accent2); margin: 0 0 0.4em; font-size: 0.85em; }
+    .phase ul { margin: 0; padding-left: 1em; font-size: 0.68em; }
+    .phase ul li { margin-bottom: 0.2em; }
+  </style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ── SLIDE 1: Title ── -->
+<section class="title-slide">
+  <h1>Workhelix Enterprise DevOps<br/><span style="color:#34d399">Take-Home Submission</span></h1>
+  <p style="color:#94a3b8; font-size:0.8em; margin-top:1.5em">
+    ECS → EKS Migration &nbsp;·&nbsp; Multi-Tenant Architecture &nbsp;·&nbsp; Terraform IaC
+  </p>
+  <p style="color:#64748b; font-size:0.65em; margin-top:2em">Zac Peterson &nbsp;|&nbsp; March 2026</p>
+</section>
+
+<!-- ── SLIDE 2: Current State ── -->
+<section>
+  <h2>Current State</h2>
+  <p style="color:#94a3b8; font-size:0.75em">8 microservices on AWS ECS Fargate — single-tenant, scaling pressure ahead</p>
+  <div class="mermaid" style="font-size:0.6em">
+graph LR
+    internet([Internet]) --> alb[ALB]
+    alb --> ecs1[Service A\nECS Fargate]
+    alb --> ecs2[Service B\nECS Fargate]
+    alb --> ecs3[Service C\nECS Fargate]
+    ecs1 & ecs2 & ecs3 --> rds[(RDS Postgres)]
+    ecs1 & ecs2 & ecs3 --> s3[(S3)]
+    style ecs1 fill:#1e3a5f,stroke:#38bdf8
+    style ecs2 fill:#1e3a5f,stroke:#38bdf8
+    style ecs3 fill:#1e3a5f,stroke:#38bdf8
+  </div>
+  <div style="margin-top:0.8em; font-size:0.65em; color:#94a3b8">
+    <b style="color:#fb923c">Pain points:</b> No tenant isolation · Manual scaling · No service mesh · Deploys require downtime
+  </div>
+</section>
+
+<!-- ── SLIDE 3: The Challenge ── -->
+<section>
+  <h2>The Challenge</h2>
+  <div class="cols">
+    <div>
+      <h3>Enterprise Requirements</h3>
+      <ul style="font-size:0.7em">
+        <li>Tenant data isolation (RBAC, network, IAM)</li>
+        <li>Zero-downtime deployments</li>
+        <li>Self-service tenant onboarding</li>
+        <li>Cost visibility per tenant</li>
+        <li>Compliance-ready (SOC2 path)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Team Constraints</h3>
+      <ul style="font-size:0.7em">
+        <li>7-person team, no dedicated platform team yet</li>
+        <li>10–20 enterprise customers in 12 months</li>
+        <li>4-week delivery window</li>
+        <li>Must not block product velocity</li>
+      </ul>
+    </div>
+  </div>
+  <div style="margin-top:1em; padding:0.6em 1em; background:#0f172a; border-left:4px solid #38bdf8; font-size:0.65em; color:#94a3b8">
+    <b style="color:#38bdf8">The decision:</b> Namespace-per-tenant on shared EKS in Phase 1 — operational simplicity wins at this team size. Account-per-tenant is the Phase 2 roadmap when compliance demands it.
+  </div>
+</section>
+
+<!-- ── SLIDE 4: Architecture Overview ── -->
+<section>
+  <h2>Proposed Architecture</h2>
+  <div class="mermaid" style="font-size:0.52em">
+graph TD
+    internet([Internet]) --> alb[AWS ALB\nTLS termination]
+    alb --> igw[Istio Ingress Gateway\nhost-based routing]
+    igw --> nsa[Namespace: tenant-a\nPods + Envoy sidecars]
+    igw --> nsb[Namespace: tenant-b\nPods + Envoy sidecars]
+    igw --> nsc[Namespace: tenant-c\nPods + Envoy sidecars]
+    nsa & nsb & nsc -.mTLS.- mesh[Istio Service Mesh]
+    flux[Flux GitOps] --> nsa & nsb & nsc
+    gitlab[GitLab CI] -->|image push| ecr[ECR]
+    gitlab -->|config update| gitrepo[Config Repo]
+    gitrepo -->|watch| flux
+    nsa -->|IRSA| iam[AWS IAM\nper-tenant role]
+    iam --> s3tenant[S3\nbucket/tenant-a/]
+    style alb fill:#1e3a5f,stroke:#38bdf8
+    style igw fill:#14532d,stroke:#34d399
+    style flux fill:#312e81,stroke:#818cf8
+  </div>
+</section>
+
+<!-- ── SLIDE 5: Multi-Tenant Strategy ── -->
+<section>
+  <h2>Multi-Tenant Strategy</h2>
+  <table>
+    <tr><th>Layer</th><th>Phase 1 (Now)</th><th>Phase 2 (Roadmap)</th></tr>
+    <tr><td><b>Boundary</b></td><td>K8s Namespace</td><td>AWS Account (Control Tower)</td></tr>
+    <tr><td><b>Network</b></td><td>NetworkPolicy + Istio AuthorizationPolicy</td><td>VPC-per-tenant</td></tr>
+    <tr><td><b>IAM</b></td><td>IRSA per namespace</td><td>Cross-account IAM roles</td></tr>
+    <tr><td><b>Storage</b></td><td>S3 prefix per tenant</td><td>S3 bucket per tenant</td></tr>
+    <tr><td><b>Onboarding</b></td><td>New HelmRelease + Kustomize overlay → Flux deploys</td><td>Account vending machine via Terraform</td></tr>
+    <tr><td><b>Good for</b></td><td>~20 tenants, small ops team, fast delivery</td><td>Hard HIPAA / SOC2 isolation requirements</td></tr>
+  </table>
+  <p style="font-size:0.6em; color:#94a3b8; margin-top:0.7em">
+    BP Bifrost ran namespace-per-environment for 200+ data scientists. Same Helm chart, per-environment Kustomize overlays. Clean upgrade path when we needed it.
+  </p>
+</section>
+
+<!-- ── SLIDE 6: EKS Cluster Design ── -->
+<section>
+  <h2>EKS Cluster Design</h2>
+  <div class="mermaid" style="font-size:0.52em">
+graph TB
+    karpenter[Karpenter Autoscaler] --> od[On-Demand Group\nm6a.xlarge\nSystem + Stateful]
+    karpenter --> spot[Spot Group\nm6a/m6i/m5a mixed\nStateless + Batch]
+    karpenter --> arm[Graviton ARM64\nm7g\nCost-Optimized]
+    keda[KEDA\nSQS queue depth] -->|scale| spot
+    vpc[VPC / 3 AZs\nus-east-1a/b/c]
+    vpc --- od & spot & arm
+    od & spot & arm --- istio[Istio Mesh\nmTLS everywhere]
+    istio --- ta[tenant-a\nns] & tb[tenant-b\nns] & tc[tenant-c\nns]
+    style karpenter fill:#312e81,stroke:#818cf8
+    style keda fill:#7c2d12,stroke:#fb923c
+  </div>
+  <div style="font-size:0.6em; color:#94a3b8; margin-top:0.5em">
+    Spot GPUs + custom queue controller at BP → Karpenter + KEDA is the managed equivalent. I built the custom version from scratch; I know exactly what these tools are replacing.
+  </div>
+</section>
+
+<!-- ── SLIDE 7: Migration Strategy ── -->
+<section>
+  <h2>ECS → EKS Migration</h2>
+  <div class="mermaid" style="font-size:0.5em">
+gantt
+    dateFormat  YYYY-MM-DD
+    axisFormat  Week %W
+    section Phase 1
+    Provision EKS + Flux + Istio   :done, p1a, 2026-04-01, 7d
+    Bootstrap Flux GitOps          :done, p1b, 2026-04-01, 7d
+    section Phase 2
+    Migrate stateless services (blue-green, 10%% EKS) :active, p2a, 2026-04-08, 7d
+    ALB weighted routing 90/10 → 50/50                :p2b, 2026-04-10, 5d
+    section Phase 3
+    All services on EKS + 48h soak :p3a, 2026-04-15, 7d
+    ECS decommission               :p3b, 2026-04-19, 3d
+  </div>
+  <div class="cols" style="margin-top:0.6em">
+    <div style="font-size:0.62em">
+      <b style="color:#38bdf8">Rollback plan:</b> ECS task definitions stay live until 100% traffic migrated + 48h soak. ALB weighted target groups make traffic shift reversible in &lt;60s.
+    </div>
+    <div style="font-size:0.62em">
+      <b style="color:#34d399">Order:</b> Stateless → stateful → RDS stays in Phase 1. Database migration is a separate project.
+    </div>
+  </div>
+</section>
+
+<!-- ── SLIDE 8: 4-Week Plan ── -->
+<section>
+  <h2>4-Week Delivery Plan</h2>
+  <table>
+    <tr><th>Week</th><th>Ships</th><th>Deferred</th></tr>
+    <tr>
+      <td><b style="color:#34d399">Week 1–2</b></td>
+      <td>EKS cluster (Terraform) · Flux + Istio bootstrap · ECR repos · Base tenant-isolation module deployed for 1 tenant</td>
+      <td>Multi-region · DR runbooks</td>
+    </tr>
+    <tr>
+      <td><b style="color:#38bdf8">Week 3</b></td>
+      <td>Blue-green migration for stateless services (10% → 50% EKS) · KEDA wired to SQS · Grafana/Prometheus up</td>
+      <td>Kyverno policies · Full audit logging</td>
+    </tr>
+    <tr>
+      <td><b style="color:#fb923c">Week 4</b></td>
+      <td>100% traffic on EKS + 48h soak · ECS teardown · Self-service tenant onboarding via Flux HelmRelease</td>
+      <td>Account-per-tenant vending · Cross-region failover</td>
+    </tr>
+  </table>
+  <p style="font-size:0.6em; color:#94a3b8; margin-top:0.6em">
+    <b>What I'm NOT doing in week 1:</b> Kyverno, multi-region, service catalog UI. Ship working isolation first. Add governance tooling in week 3 once the cluster is stable.
+  </p>
+</section>
+
+<!-- ── SLIDE 9: Terraform Module ── -->
+<section>
+  <h2>Terraform: <code>tenant-isolation</code></h2>
+  <p style="font-size:0.65em; color:#94a3b8">Cloud-layer boundary per tenant. K8s resources (namespace, RBAC, NetworkPolicy) live in Helm + Flux — not here.</p>
+  <pre><code class="language-hcl">module "tenant_acme" {
+  source = "./modules/tenant-isolation"
+
+  tenant_name            = "acme"
+  environment            = "prod"
+  vpc_id                 = module.vpc.vpc_id
+  cluster_oidc_issuer_url = module.eks.cluster_oidc_issuer_url
+  allowed_namespaces     = ["acme"]
+  availability_zones     = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  # outputs: iam_role_arn, security_group_id, subnet_ids
+  # → consumed by Flux HelmRelease values for the tenant-base chart
+}</code></pre>
+  <div style="font-size:0.62em; margin-top:0.5em">
+    <b style="color:#34d399">Provisions:</b> 3 private subnets (per AZ) · Security group (intra-tenant + Istio ingress) · IRSA role scoped to <code>s3://bucket/acme/*</code> + Secrets Manager paths
+  </div>
+</section>
+
+<!-- ── SLIDE 10: STAR — BP Bifrost ── -->
+<section>
+  <h2>How I've Done This Before</h2>
+  <h3 style="font-size:0.75em">BP Bifrost — Hybrid Multi-Cloud K8s Platform</h3>
+  <div class="star-card">
+    <div class="label">Situation</div>
+    Data scientists at BP Subsurface Technologies each managed their own unmanaged Windows VM. Training jobs ran overnight on always-on machines. Zero central identity management. Azure costs were uncontrolled.
+  </div>
+  <div class="star-card">
+    <div class="label">Action</div>
+    Built end-to-end as sole DevOps engineer: Azure VM provisioning pipeline → Entra ID enrollment → GCP Kubernetes cluster with NVIDIA GPU spot nodes → custom K8s controller watching job queue depth → Flux + GitLab GitOps for cluster management → Istio mesh with namespace-per-team isolation.
+  </div>
+  <div class="star-card">
+    <div class="label">Result</div>
+    Significant Azure cost reduction (idle compute eliminated) · Engineers ran multiple training iterations per day vs. one overnight job · 99.9% uptime despite spot preemptions · All data scientists brought under corporate identity (Entra ID) for the first time.
+  </div>
+</section>
+
+<!-- ── SLIDE 11: BP → Workhelix Mapping ── -->
+<section>
+  <h2>BP → Workhelix: Direct Mapping</h2>
+  <table>
+    <tr><th>BP Bifrost</th><th>Workhelix EKS</th></tr>
+    <tr><td>Namespace-per-research-team isolation</td><td>Namespace-per-tenant (same tooling)</td></tr>
+    <tr><td>Custom K8s controller — job queue depth → GPU scale</td><td>Karpenter + KEDA — managed equivalent. Built from scratch, know every seam.</td></tr>
+    <tr><td>GCP spot GPU node pools → cost savings</td><td>Mixed spot node group (m6a/m6i/m5a)</td></tr>
+    <tr><td>Flux + GitLab GitOps</td><td>Flux + GitLab (identical stack)</td></tr>
+    <tr><td>Istio mTLS + AuthorizationPolicy per namespace</td><td>Same, with STRICT PeerAuthentication</td></tr>
+    <tr><td>Azure Entra ID federated identity</td><td>IRSA (IAM Roles for Service Accounts)</td></tr>
+    <tr><td>Per-team Kustomize overlays on shared Helm chart</td><td>Per-tenant Kustomize overlays → tenant-base chart</td></tr>
+  </table>
+</section>
+
+<!-- ── SLIDE 12: Day 2 + Contact ── -->
+<section>
+  <h2>Day 2 Operations</h2>
+  <div class="cols">
+    <div>
+      <h3 style="font-size:0.75em">Developer Experience</h3>
+      <ul style="font-size:0.65em">
+        <li>Ephemeral preview namespaces per MR (GitLab + Flux)</li>
+        <li>Flagger canary: 90/10 → auto-promote on clean SLOs</li>
+        <li>Runbooks in-repo as markdown, linked from alerts</li>
+        <li>Per-tenant resource dashboards in Grafana</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="font-size:0.75em">Observability Stack</h3>
+      <ul style="font-size:0.65em">
+        <li>Prometheus + Grafana (kube-prometheus-stack)</li>
+        <li>Kiali — Istio service topology</li>
+        <li>Jaeger — distributed tracing</li>
+        <li>CloudWatch Container Insights for EKS node metrics</li>
+      </ul>
+    </div>
+  </div>
+  <div style="margin-top:1.2em; padding:0.8em 1.2em; background:#0f172a; border: 1px solid #334155; border-radius:6px; text-align:center; font-size:0.7em">
+    <p style="margin:0; color:#94a3b8">Zac Peterson &nbsp;·&nbsp; <a href="mailto:zac@zacp.xyz" style="color:#38bdf8">zac@zacp.xyz</a> &nbsp;·&nbsp; <a href="https://github.com/zacpeterson" style="color:#38bdf8">github.com/zacpeterson</a></p>
+    <p style="margin:0.3em 0 0; color:#64748b; font-size:0.85em">Full code: Architecture doc + Terraform module in repo</p>
+  </div>
+</section>
+
+</div><!-- .slides -->
+</div><!-- .reveal -->
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.0/plugin/highlight/highlight.js"></script>
+<script>
+  // Init Mermaid
+  mermaid.initialize({ startOnLoad: false, theme: 'dark', themeVariables: { primaryColor: '#1e3a5f', primaryTextColor: '#e2e8f0', primaryBorderColor: '#38bdf8', lineColor: '#38bdf8', secondaryColor: '#14532d', tertiaryColor: '#0f172a', background: '#0d1117' } });
+
+  // Init Reveal
+  Reveal.initialize({
+    hash: true,
+    slideNumber: 'c/t',
+    transition: 'slide',
+    plugins: [RevealHighlight],
+  });
+
+  // Render Mermaid after Reveal is ready
+  Reveal.on('ready', () => {
+    document.querySelectorAll('.mermaid').forEach(el => {
+      const code = el.textContent.trim();
+      const id = 'mermaid-' + Math.random().toString(36).slice(2);
+      mermaid.render(id, code).then(({svg}) => { el.innerHTML = svg; });
+    });
+  });
+</script>
+</body>
+</html>
