@@ -148,15 +148,20 @@ Don't migrate the data tier until the application tier is clean. RDS stays in it
 
 ## Prior Art: BP Bifrost
 
-The multi-tenant namespace model here isn't theoretical. At BP in 2024, I built a hybrid platform called Bifrost as the sole DevOps engineer on the project. The situation: data scientists across competing research teams were self-managing unmanaged Windows VMs, running overnight training jobs on always-on compute, no corporate identity, no cost controls, no visibility. Azure costs were climbing with no accountability.
+The multi-tenant namespace model here isn't theoretical. At BP in 2024, I built a platform called Bifrost as the sole DevOps engineer on the project.
 
-I built both sides of the platform. On Azure: a VM provisioning pipeline that enrolled machines into Entra ID automatically, mounted Azure Storage shares per team, and brought every data scientist under corporate identity for the first time. On GCP: a Kubernetes cluster with a custom controller that watched job queue depth and scaled GPU spot node pools up and down automatically - nodes at zero when idle, spun up in under two minutes when a job queued.
+**Situation:** Data scientists across BP's Subsurface Technologies department were each self-managing individual Windows VMs — unmanaged, outside corporate identity, no cost controls. Training jobs ran overnight on always-on machines. One iteration per day, no ability to queue work, Azure compute costs with no accountability.
 
-The K8s side used the same patterns described here: namespace-per-team with Kustomize overlays on a shared Helm chart, Istio mesh for inter-team service isolation (these teams could not share data), Flux + GitLab for GitOps. No kubectl in CI, no manual deployments, all state in Git.
+**What I built:** A multi-cloud Kubernetes platform spanning AKS (Azure Kubernetes Service) and GKE (Google Kubernetes Engine) as a single logical environment. Rather than migrating in phases, we launched the full AKS+GKE platform together — onboarded the data science team as beta users first, then rolled out to the broader organization. The migration was from individual Windows VMs directly onto the new platform.
 
-The result was a 40% reduction in Azure compute costs (eliminated always-on VMs), and data scientists went from one overnight training run per day to multiple iterations. The platform hit 99.9% uptime over its production lifecycle.
+- **AKS cluster (Azure):** JupyterHub for user-facing workloads, Entra ID SSO, Azure Storage mounts per team. This is where data scientists worked day-to-day.
+- **GKE cluster (Google Cloud):** GPU compute layer — NVIDIA spot node pools with a custom Kubernetes controller I wrote that watched job queue depth and scaled node pools up/down automatically. Zero nodes when idle, provisioned in under two minutes when a job queued.
+- **Multi-tenant isolation:** Namespace-per-team across both clusters, with RBAC and NetworkPolicies enforced at the namespace boundary. These teams had strict data separation requirements — they could not share data or workloads.
+- **Same patterns as here:** Namespace-per-team with Kustomize overlays on a shared Helm chart, Istio mesh for service isolation, Flux + GitLab for GitOps. No manual kubectl in CI, all state in Git.
 
-That's the model I'm proposing for Workhelix - proven at a larger scale, right-sized for where you are now, with clear phase 2 paths as customer requirements get more demanding.
+**Result:** 40% reduction in Azure compute costs by eliminating always-on VMs, data scientists went from one overnight training run per day to multiple iterations, 99.9% uptime across the multi-cloud platform in production.
+
+That's the model I'm proposing for Workhelix — proven at scale across two cloud providers, right-sized for where you are now, with a clear phase 2 path when compliance requirements demand harder boundaries.
 
 ---
 

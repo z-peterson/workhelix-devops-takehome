@@ -247,18 +247,18 @@ gantt
 <!-- ── SLIDE 10: STAR — BP Bifrost ── -->
 <section>
   <h2>How I've Done This Before</h2>
-  <h3 style="font-size:0.75em">BP Bifrost — Hybrid Multi-Cloud K8s Platform</h3>
+  <h3 style="font-size:0.75em">BP Bifrost — Multi-Cloud AKS + GKE Platform</h3>
   <div class="star-card">
     <div class="label">Situation</div>
-    Data scientists at BP Subsurface Technologies each managed their own unmanaged Windows VM. Training jobs ran overnight on always-on machines. Zero central identity management. Azure costs were uncontrolled.
+    BP data scientists each managed individual Windows VMs — unmanaged, outside corporate identity, always-on Azure compute, one overnight training run per day. No cost controls, no visibility, no way to queue work.
   </div>
   <div class="star-card">
     <div class="label">Action</div>
-    Built end-to-end as sole DevOps engineer: Azure VM provisioning pipeline → Entra ID enrollment → GCP Kubernetes cluster with NVIDIA GPU spot nodes → custom K8s controller watching job queue depth → Flux + GitLab GitOps for cluster management → Istio mesh with namespace-per-team isolation.
+    Built multi-cloud K8s platform from scratch as sole DevOps engineer: AKS (Azure) for JupyterHub + Entra ID SSO, GKE (Google Cloud) for NVIDIA GPU spot compute with a custom K8s controller watching job queue depth. Launched AKS+GKE together as one logical multi-tenant environment — beta with the data science team, then full org rollout. Namespace-per-team isolation across both clusters, Flux + GitLab GitOps, Istio mesh.
   </div>
   <div class="star-card">
     <div class="label">Result</div>
-    Significant Azure cost reduction (idle compute eliminated) · Engineers ran multiple training iterations per day vs. one overnight job · 99.9% uptime despite spot preemptions · All data scientists brought under corporate identity (Entra ID) for the first time.
+    40% Azure cost reduction (eliminated always-on VMs) · Multiple training iterations per day vs. one overnight · 99.9% uptime across multi-cloud in production · All users under Entra ID for the first time.
   </div>
 </section>
 
@@ -266,14 +266,14 @@ gantt
 <section>
   <h2>BP → Workhelix: Direct Mapping</h2>
   <table>
-    <tr><th>BP Bifrost</th><th>Workhelix EKS</th></tr>
-    <tr><td>Namespace-per-research-team isolation</td><td>Namespace-per-tenant (same tooling)</td></tr>
-    <tr><td>Custom K8s controller — job queue depth → GPU scale</td><td>Karpenter + KEDA — managed equivalent. Built from scratch, know every seam.</td></tr>
-    <tr><td>GCP spot GPU node pools → cost savings</td><td>Mixed spot node group (m6a/m6i/m5a)</td></tr>
-    <tr><td>Flux + GitLab GitOps</td><td>Flux + GitLab (identical stack)</td></tr>
-    <tr><td>Istio mTLS + AuthorizationPolicy per namespace</td><td>Same, with STRICT PeerAuthentication</td></tr>
-    <tr><td>Azure Entra ID federated identity</td><td>IRSA (IAM Roles for Service Accounts)</td></tr>
-    <tr><td>Per-team Kustomize overlays on shared Helm chart</td><td>Per-tenant Kustomize overlays → tenant-base chart</td></tr>
+    <tr><th>BP Bifrost (AKS + GKE)</th><th>Workhelix EKS</th></tr>
+    <tr><td>Namespace-per-research-team across both clusters</td><td>Namespace-per-tenant (same pattern)</td></tr>
+    <tr><td>Custom K8s controller — queue depth → GPU node scale</td><td>Karpenter + KEDA — managed equivalent. Built the custom version, know every seam.</td></tr>
+    <tr><td>GKE spot GPU node pools → zero cost at idle</td><td>Mixed spot node group (m6a/m6i/m5a)</td></tr>
+    <tr><td>Flux + GitLab GitOps across AKS + GKE</td><td>Flux + GitLab (identical stack)</td></tr>
+    <tr><td>Istio multi-cluster mTLS + namespace AuthorizationPolicy</td><td>Same, STRICT PeerAuthentication per tenant namespace</td></tr>
+    <tr><td>Entra ID federated identity across both clouds</td><td>IRSA (IAM Roles for Service Accounts)</td></tr>
+    <tr><td>Per-team Kustomize overlays on shared JupyterHub Helm chart</td><td>Per-tenant Kustomize overlays → tenant-base chart</td></tr>
   </table>
 </section>
 
