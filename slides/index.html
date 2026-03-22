@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Workhelix DevOps — Take-Home Submission</title>
+  <title>Workhelix DevOps: Take-Home Submission</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.0/dist/reveal.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.0/dist/theme/night.css" />
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
@@ -62,7 +62,7 @@
 <!-- ── SLIDE 2: Current State ── -->
 <section>
   <h2>Current State</h2>
-  <p style="color:#94a3b8; font-size:0.75em">8 microservices on AWS ECS Fargate — single-tenant, scaling pressure ahead</p>
+  <p style="color:#94a3b8; font-size:0.75em">8 microservices on AWS ECS Fargate, single-tenant, scaling pressure ahead</p>
   <div class="mermaid" style="font-size:0.6em">
 graph LR
     internet([Internet]) --> alb[ALB]
@@ -105,7 +105,7 @@ graph LR
     </div>
   </div>
   <div style="margin-top:0.5em; padding:0.4em 0.8em; background:#0f172a; border-left:4px solid #38bdf8; font-size:0.6em; color:#94a3b8">
-    <b style="color:#38bdf8">The decision:</b> Namespace-per-tenant on shared EKS in Phase 1 — operational simplicity wins at this team size. Account-per-tenant is the Phase 2 roadmap when compliance demands it.
+    <b style="color:#38bdf8">The decision:</b> Namespace-per-tenant on shared EKS in Phase 1. Operational simplicity wins at this team size. Account-per-tenant is the Phase 2 roadmap when compliance demands it.
   </div>
 </section>
 
@@ -224,7 +224,7 @@ gantt
 <!-- ── SLIDE 9: Terraform Module ── -->
 <section>
   <h2 style="font-size:0.85em">Terraform: <code>tenant-isolation</code></h2>
-  <p style="font-size:0.65em; color:#94a3b8">Cloud-layer boundary per tenant. K8s resources (namespace, RBAC, NetworkPolicy) live in Helm + Flux — not here.</p>
+  <p style="font-size:0.65em; color:#94a3b8">Cloud-layer boundary per tenant. K8s resources (namespace, RBAC, NetworkPolicy) live in Helm + Flux, not here.</p>
   <pre><code class="language-hcl">module "tenant_acme" {
   source = "./modules/tenant-isolation"
 
@@ -245,14 +245,14 @@ gantt
 <!-- ── SLIDE 10: STAR — BP Bifrost ── -->
 <section>
   <h2 style="font-size:0.9em">How I've Done This Before</h2>
-  <h3 style="font-size:0.7em; margin-top:0.2em">BP Bifrost — Multi-Cloud AKS + GKE Platform</h3>
+  <h3 style="font-size:0.7em; margin-top:0.2em">BP Bifrost: Multi-Cloud AKS + GKE Platform</h3>
   <div class="star-card">
     <div class="label">Situation</div>
-    BP data scientists each managed individual Windows VMs — unmanaged, outside corporate identity, always-on Azure compute, one overnight training run per day. No cost controls, no visibility, no way to queue work.
+    BP data scientists each managed their own Windows VMs: unmanaged, outside corporate identity, always-on Azure compute, one overnight training run per day max. No cost controls, no visibility, no way to queue work.
   </div>
   <div class="star-card">
     <div class="label">Action</div>
-    Built multi-cloud K8s platform as sole DevOps engineer: AKS (Azure) for JupyterHub + Entra ID SSO, GKE for NVIDIA GPU spot compute with a custom K8s controller on job queue depth. Launched AKS+GKE as one multi-tenant env — beta with the data science team, then full org. Namespace-per-team, Flux + GitLab GitOps, Istio mesh.
+    Built multi-cloud K8s platform as sole DevOps engineer: AKS (Azure) for JupyterHub + Entra ID SSO, GKE for NVIDIA GPU spot compute with a custom K8s controller watching job queue depth. Launched AKS+GKE as one multi-tenant env, beta with the data science team then full org. Namespace-per-team, Flux + GitLab GitOps, Istio mesh.
   </div>
   <div class="star-card">
     <div class="label">Result</div>
@@ -266,7 +266,7 @@ gantt
   <table style="font-size:0.6em">
     <tr><th>BP Bifrost (AKS + GKE)</th><th>Workhelix EKS</th></tr>
     <tr><td>Namespace-per-research-team across both clusters</td><td>Namespace-per-tenant (same pattern)</td></tr>
-    <tr><td>Custom K8s controller — queue depth → GPU node scale</td><td>Karpenter + KEDA — managed equivalent. Built the custom version, know every seam.</td></tr>
+    <tr><td>Custom K8s controller: queue depth → GPU node scale</td><td>Karpenter + KEDA: managed equivalent. Built the custom version, know every seam.</td></tr>
     <tr><td>GKE spot GPU node pools → zero cost at idle</td><td>Mixed spot node group (m6a/m6i/m5a)</td></tr>
     <tr><td>Flux + GitLab GitOps across AKS + GKE</td><td>Flux + GitLab (identical stack)</td></tr>
     <tr><td>Istio multi-cluster mTLS + namespace AuthorizationPolicy</td><td>Same, STRICT PeerAuthentication per tenant namespace</td></tr>
@@ -291,14 +291,14 @@ gantt
       <h3 style="font-size:0.75em">Observability Stack</h3>
       <ul style="font-size:0.65em">
         <li>Prometheus + Grafana (kube-prometheus-stack)</li>
-        <li>Kiali — Istio service topology</li>
-        <li>Jaeger — distributed tracing</li>
+        <li>Kiali: Istio service topology</li>
+        <li>Jaeger: distributed tracing</li>
         <li>CloudWatch Container Insights for EKS node metrics</li>
       </ul>
     </div>
   </div>
   <div style="margin-top:1.2em; padding:0.8em 1.2em; background:#0f172a; border: 1px solid #334155; border-radius:6px; text-align:center; font-size:0.7em">
-    <p style="margin:0; color:#94a3b8">Zac Peterson &nbsp;·&nbsp; <a href="mailto:zac@zacp.xyz" style="color:#38bdf8">zac@zacp.xyz</a> &nbsp;·&nbsp; <a href="https://github.com/zacpeterson" style="color:#38bdf8">github.com/zacpeterson</a></p>
+    <p style="margin:0; color:#94a3b8">Zac Peterson &nbsp;·&nbsp; <a href="mailto:zac@zacp.xyz" style="color:#38bdf8">zac@zacp.xyz</a> &nbsp;·&nbsp; <a href="https://github.com/z-peterson" style="color:#38bdf8">github.com/z-peterson</a></p>
     <p style="margin:0.3em 0 0; color:#64748b; font-size:0.85em">Full code: Architecture doc + Terraform module in repo</p>
   </div>
 </section>
