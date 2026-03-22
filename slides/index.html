@@ -36,7 +36,7 @@
     .reveal pre { width: 100%; }
 
     /* star card */
-    .star-card { background: #0f172a; border: 1px solid #334155; border-left: 4px solid var(--accent); padding: 0.6em 1em; border-radius: 4px; margin-bottom: 0.5em; font-size: 0.72em; }
+    .star-card { background: #0f172a; border: 1px solid #334155; border-left: 4px solid var(--accent); padding: 0.45em 0.8em; border-radius: 4px; margin-bottom: 0.35em; font-size: 0.65em; }
     .star-card .label { color: var(--accent); font-weight: 700; font-size: 0.9em; text-transform: uppercase; }
 
     /* phase box */
@@ -53,7 +53,7 @@
 <!-- ── SLIDE 1: Title ── -->
 <section class="title-slide">
   <h1>Workhelix Enterprise DevOps<br/><span style="color:#34d399">Take-Home Submission</span></h1>
-  <p style="color:#94a3b8; font-size:0.8em; margin-top:1.5em">
+  <p style="color:#94a3b8; font-size:0.65em; margin-top:1.2em">
     ECS → EKS Migration &nbsp;·&nbsp; Multi-Tenant Architecture &nbsp;·&nbsp; Terraform IaC
   </p>
   <p style="color:#64748b; font-size:0.65em; margin-top:2em">Zac Peterson &nbsp;|&nbsp; March 2026</p>
@@ -104,7 +104,7 @@ graph LR
       </ul>
     </div>
   </div>
-  <div style="margin-top:1em; padding:0.6em 1em; background:#0f172a; border-left:4px solid #38bdf8; font-size:0.65em; color:#94a3b8">
+  <div style="margin-top:0.5em; padding:0.4em 0.8em; background:#0f172a; border-left:4px solid #38bdf8; font-size:0.6em; color:#94a3b8">
     <b style="color:#38bdf8">The decision:</b> Namespace-per-tenant on shared EKS in Phase 1 — operational simplicity wins at this team size. Account-per-tenant is the Phase 2 roadmap when compliance demands it.
   </div>
 </section>
@@ -112,23 +112,21 @@ graph LR
 <!-- ── SLIDE 4: Architecture Overview ── -->
 <section>
   <h2>Proposed Architecture</h2>
-  <div class="mermaid" style="font-size:0.52em">
-graph TD
-    internet([Internet]) --> alb[AWS ALB\nTLS termination]
-    alb --> igw[Istio Ingress Gateway\nhost-based routing]
-    igw --> nsa[Namespace: tenant-a\nPods + Envoy sidecars]
-    igw --> nsb[Namespace: tenant-b\nPods + Envoy sidecars]
-    igw --> nsc[Namespace: tenant-c\nPods + Envoy sidecars]
-    nsa & nsb & nsc -.mTLS.- mesh[Istio Service Mesh]
-    flux[Flux GitOps] --> nsa & nsb & nsc
-    gitlab[GitLab CI] -->|image push| ecr[ECR]
+  <div class="mermaid" style="font-size:0.55em">
+graph LR
+    internet([Internet]) --> alb[ALB / TLS]
+    alb --> igw[Istio Gateway]
+    igw --> ns[Tenant Namespaces + mTLS]
+    gitlab[GitLab CI] -->|image push| ecr[(ECR)]
     gitlab -->|config update| gitrepo[Config Repo]
-    gitrepo -->|watch| flux
-    nsa -->|IRSA| iam[AWS IAM\nper-tenant role]
-    iam --> s3tenant[S3\nbucket/tenant-a/]
+    gitrepo -->|watch| flux[Flux GitOps]
+    flux --> ns
+    ns -.IRSA.- iam[AWS IAM per-tenant]
+    iam --> s3tenant[("S3 / bucket/tenant/")]
     style alb fill:#1e3a5f,stroke:#38bdf8
     style igw fill:#14532d,stroke:#34d399
     style flux fill:#312e81,stroke:#818cf8
+    style ns fill:#1e3a5f,stroke:#38bdf8
   </div>
 </section>
 
@@ -154,14 +152,14 @@ graph TD
   <h2>EKS Cluster Design</h2>
   <div class="mermaid" style="font-size:0.52em">
 graph TB
-    karpenter[Karpenter Autoscaler] --> od[On-Demand Group\nm6a.xlarge\nSystem + Stateful]
-    karpenter --> spot[Spot Group\nm6a/m6i/m5a mixed\nStateless + Batch]
-    karpenter --> arm[Graviton ARM64\nm7g\nCost-Optimized]
-    keda[KEDA\nSQS queue depth] -->|scale| spot
-    vpc[VPC / 3 AZs\nus-east-1a/b/c]
+    karpenter[Karpenter] --> od[On-Demand: m6a.xlarge]
+    karpenter --> spot[Spot: m6a / m6i / m5a]
+    karpenter --> arm[Graviton m7g ARM64]
+    keda[KEDA / SQS] -->|scale| spot
+    vpc[VPC / 3 AZs]
     vpc --- od & spot & arm
-    od & spot & arm --- istio[Istio Mesh\nmTLS everywhere]
-    istio --- ta[tenant-a\nns] & tb[tenant-b\nns] & tc[tenant-c\nns]
+    od & spot & arm --- istio[Istio mTLS Mesh]
+    istio --- ta[tenant-a] & tb[tenant-b] & tc[tenant-c]
     style karpenter fill:#312e81,stroke:#818cf8
     style keda fill:#7c2d12,stroke:#fb923c
   </div>
@@ -176,7 +174,7 @@ graph TB
   <div class="mermaid" style="font-size:0.5em">
 gantt
     dateFormat  YYYY-MM-DD
-    axisFormat  Week %W
+    axisFormat  %m/%d
     section Phase 1
     Provision EKS + Flux + Istio   :done, p1a, 2026-04-01, 7d
     Bootstrap Flux GitOps          :done, p1b, 2026-04-01, 7d
@@ -225,7 +223,7 @@ gantt
 
 <!-- ── SLIDE 9: Terraform Module ── -->
 <section>
-  <h2>Terraform: <code>tenant-isolation</code></h2>
+  <h2 style="font-size:0.85em">Terraform: <code>tenant-isolation</code></h2>
   <p style="font-size:0.65em; color:#94a3b8">Cloud-layer boundary per tenant. K8s resources (namespace, RBAC, NetworkPolicy) live in Helm + Flux — not here.</p>
   <pre><code class="language-hcl">module "tenant_acme" {
   source = "./modules/tenant-isolation"
@@ -246,15 +244,15 @@ gantt
 
 <!-- ── SLIDE 10: STAR — BP Bifrost ── -->
 <section>
-  <h2>How I've Done This Before</h2>
-  <h3 style="font-size:0.75em">BP Bifrost — Multi-Cloud AKS + GKE Platform</h3>
+  <h2 style="font-size:0.9em">How I've Done This Before</h2>
+  <h3 style="font-size:0.7em; margin-top:0.2em">BP Bifrost — Multi-Cloud AKS + GKE Platform</h3>
   <div class="star-card">
     <div class="label">Situation</div>
     BP data scientists each managed individual Windows VMs — unmanaged, outside corporate identity, always-on Azure compute, one overnight training run per day. No cost controls, no visibility, no way to queue work.
   </div>
   <div class="star-card">
     <div class="label">Action</div>
-    Built multi-cloud K8s platform from scratch as sole DevOps engineer: AKS (Azure) for JupyterHub + Entra ID SSO, GKE (Google Cloud) for NVIDIA GPU spot compute with a custom K8s controller watching job queue depth. Launched AKS+GKE together as one logical multi-tenant environment — beta with the data science team, then full org rollout. Namespace-per-team isolation across both clusters, Flux + GitLab GitOps, Istio mesh.
+    Built multi-cloud K8s platform as sole DevOps engineer: AKS (Azure) for JupyterHub + Entra ID SSO, GKE for NVIDIA GPU spot compute with a custom K8s controller on job queue depth. Launched AKS+GKE as one multi-tenant env — beta with the data science team, then full org. Namespace-per-team, Flux + GitLab GitOps, Istio mesh.
   </div>
   <div class="star-card">
     <div class="label">Result</div>
@@ -264,8 +262,8 @@ gantt
 
 <!-- ── SLIDE 11: BP → Workhelix Mapping ── -->
 <section>
-  <h2>BP → Workhelix: Direct Mapping</h2>
-  <table>
+  <h2 style="font-size:0.9em">BP → Workhelix: Direct Mapping</h2>
+  <table style="font-size:0.6em">
     <tr><th>BP Bifrost (AKS + GKE)</th><th>Workhelix EKS</th></tr>
     <tr><td>Namespace-per-research-team across both clusters</td><td>Namespace-per-tenant (same pattern)</td></tr>
     <tr><td>Custom K8s controller — queue depth → GPU node scale</td><td>Karpenter + KEDA — managed equivalent. Built the custom version, know every seam.</td></tr>
@@ -273,7 +271,6 @@ gantt
     <tr><td>Flux + GitLab GitOps across AKS + GKE</td><td>Flux + GitLab (identical stack)</td></tr>
     <tr><td>Istio multi-cluster mTLS + namespace AuthorizationPolicy</td><td>Same, STRICT PeerAuthentication per tenant namespace</td></tr>
     <tr><td>Entra ID federated identity across both clouds</td><td>IRSA (IAM Roles for Service Accounts)</td></tr>
-    <tr><td>Per-team Kustomize overlays on shared JupyterHub Helm chart</td><td>Per-tenant Kustomize overlays → tenant-base chart</td></tr>
   </table>
 </section>
 
@@ -313,7 +310,7 @@ gantt
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.0/plugin/highlight/highlight.js"></script>
 <script>
   // Init Mermaid
-  mermaid.initialize({ startOnLoad: false, theme: 'dark', themeVariables: { primaryColor: '#1e3a5f', primaryTextColor: '#e2e8f0', primaryBorderColor: '#38bdf8', lineColor: '#38bdf8', secondaryColor: '#14532d', tertiaryColor: '#0f172a', background: '#0d1117' } });
+  mermaid.initialize({ startOnLoad: false, theme: 'dark', flowchart: { useMaxWidth: true, htmlLabels: true }, gantt: { useMaxWidth: true }, themeVariables: { primaryColor: '#1e3a5f', primaryTextColor: '#e2e8f0', primaryBorderColor: '#38bdf8', lineColor: '#38bdf8', secondaryColor: '#14532d', tertiaryColor: '#0f172a', background: '#0d1117', fontSize: '14px' } });
 
   // Init Reveal
   Reveal.initialize({
