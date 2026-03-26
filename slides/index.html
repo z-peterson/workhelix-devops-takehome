@@ -112,17 +112,17 @@ graph LR
 <!-- ── SLIDE 4: Architecture Overview ── -->
 <section>
   <h2>Proposed Architecture</h2>
-  <div class="mermaid" style="font-size:0.55em">
+  <div class="mermaid" style="font-size:0.7em">
 graph LR
     internet([Internet]) --> alb[ALB / TLS]
-    alb --> igw[Istio Gateway]
-    igw --> ns[Tenant Namespaces + mTLS]
+    alb --> igw[Istio GW]
+    igw --> ns[Tenant NS + mTLS]
     gitlab[GitLab CI] -->|image push| ecr[(ECR)]
     gitlab -->|config update| gitrepo[Config Repo]
     gitrepo -->|watch| flux[Flux GitOps]
     flux --> ns
     ns -.IRSA.- iam[AWS IAM per-tenant]
-    iam --> s3tenant[("S3 / bucket/tenant/")]
+    iam --> s3tenant[("S3 / tenant/")]
     style alb fill:#1e3a5f,stroke:#38bdf8
     style igw fill:#14532d,stroke:#34d399
     style flux fill:#312e81,stroke:#818cf8
@@ -150,7 +150,7 @@ graph LR
 <!-- ── SLIDE 6: EKS Cluster Design ── -->
 <section>
   <h2>EKS Cluster Design</h2>
-  <div class="mermaid" style="font-size:0.52em">
+  <div class="mermaid" style="font-size:0.62em">
 graph TB
     karpenter[Karpenter] --> od[On-Demand: m6a.xlarge]
     karpenter --> spot[Spot: m6a / m6i / m5a]
@@ -171,21 +171,28 @@ graph TB
 <!-- ── SLIDE 7: Migration Strategy ── -->
 <section>
   <h2>ECS → EKS Migration</h2>
-  <div class="mermaid" style="font-size:0.5em">
-gantt
-    dateFormat  YYYY-MM-DD
-    axisFormat  %m/%d
-    section Phase 1
-    Provision EKS + Flux + Istio   :done, p1a, 2026-04-01, 7d
-    Bootstrap Flux GitOps          :done, p1b, 2026-04-01, 7d
-    section Phase 2
-    Migrate stateless services (blue-green, 10%% EKS) :active, p2a, 2026-04-08, 7d
-    ALB weighted routing 90/10 → 50/50                :p2b, 2026-04-10, 5d
-    section Phase 3
-    All services on EKS + 48h soak :p3a, 2026-04-15, 7d
-    ECS decommission               :p3b, 2026-04-19, 3d
-  </div>
-  <div class="cols" style="margin-top:0.6em">
+  <table style="font-size:0.6em">
+    <tr><th>Phase</th><th>Timeline</th><th>What Happens</th><th>Traffic Split</th></tr>
+    <tr>
+      <td><b style="color:#34d399">Phase 1</b></td>
+      <td>Week 1-2</td>
+      <td>Provision EKS + Flux + Istio bootstrap</td>
+      <td>100% ECS</td>
+    </tr>
+    <tr>
+      <td><b style="color:#38bdf8">Phase 2</b></td>
+      <td>Week 3</td>
+      <td>Blue-green migrate stateless services, ALB weighted routing</td>
+      <td>90/10 → 50/50</td>
+    </tr>
+    <tr>
+      <td><b style="color:#fb923c">Phase 3</b></td>
+      <td>Week 4</td>
+      <td>All services on EKS + 48h soak, ECS decommission</td>
+      <td>100% EKS</td>
+    </tr>
+  </table>
+  <div class="cols" style="margin-top:0.8em">
     <div style="font-size:0.62em">
       <b style="color:#38bdf8">Rollback plan:</b> ECS task definitions stay live until 100% traffic migrated + 48h soak. ALB weighted target groups make traffic shift reversible in &lt;60s.
     </div>
@@ -248,7 +255,7 @@ gantt
   <h3 style="font-size:0.7em; margin-top:0.2em">BP Bifrost: Multi-Cloud AKS + GKE Platform</h3>
   <div class="star-card">
     <div class="label">Situation</div>
-    BP data scientists each managed their own Windows VMs: unmanaged, outside corporate identity, always-on Azure compute, one overnight training run per day max. No cost controls, no visibility, no way to queue work.
+    200+ BP data scientists on unmanaged Windows VMs: always-on Azure compute, outside corporate identity, one training run per day max. No cost controls or visibility.
   </div>
   <div class="star-card">
     <div class="label">Action</div>
@@ -274,7 +281,27 @@ gantt
   </table>
 </section>
 
-<!-- ── SLIDE 12: Day 2 + Contact ── -->
+<!-- ── SLIDE 12: Bridge to Your Stack ── -->
+<section>
+  <h2 style="font-size:0.9em">How This Maps to Your Stack</h2>
+  <p style="font-size:0.65em; color:#94a3b8; margin-bottom:0.6em">
+    The take-home tested K8s knowledge, but the patterns transfer directly to your account-per-tenant ECS architecture.
+  </p>
+  <table style="font-size:0.6em">
+    <tr><th>Concept (My Take-Home)</th><th>Your Reality (Account-per-Tenant ECS)</th></tr>
+    <tr><td>Namespace-per-tenant isolation</td><td>AWS account-per-tenant (stronger boundary)</td></tr>
+    <tr><td>IRSA scoped to namespace</td><td>IAM roles scoped to account</td></tr>
+    <tr><td>Flux GitOps deploys per tenant</td><td>Django control plane + Terraform per account</td></tr>
+    <tr><td>Istio mTLS between namespaces</td><td>VPC isolation + Tailscale VPN</td></tr>
+    <tr><td>Karpenter autoscaling</td><td>ECS Fargate auto-scaling</td></tr>
+    <tr><td>S3 prefix isolation</td><td>S3 bucket per account</td></tr>
+  </table>
+  <div style="margin-top:0.6em; padding:0.4em 0.8em; background:#0f172a; border-left:4px solid #34d399; font-size:0.6em; color:#94a3b8">
+    <b style="color:#34d399">Bottom line:</b> Your account-per-tenant model is what I proposed as Phase 2. The isolation primitives are the same, the boundary is just harder. I know both sides.
+  </div>
+</section>
+
+<!-- ── SLIDE 13: Day 2 + Contact ── -->
 <section>
   <h2>Day 2 Operations</h2>
   <div class="cols">
@@ -310,7 +337,7 @@ gantt
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.0/plugin/highlight/highlight.js"></script>
 <script>
   // Init Mermaid
-  mermaid.initialize({ startOnLoad: false, theme: 'dark', flowchart: { useMaxWidth: true, htmlLabels: true }, gantt: { useMaxWidth: true }, themeVariables: { primaryColor: '#1e3a5f', primaryTextColor: '#e2e8f0', primaryBorderColor: '#38bdf8', lineColor: '#38bdf8', secondaryColor: '#14532d', tertiaryColor: '#0f172a', background: '#0d1117', fontSize: '14px' } });
+  mermaid.initialize({ startOnLoad: false, theme: 'dark', flowchart: { useMaxWidth: true, htmlLabels: true }, gantt: { useMaxWidth: true }, themeVariables: { primaryColor: '#1e3a5f', primaryTextColor: '#e2e8f0', primaryBorderColor: '#38bdf8', lineColor: '#38bdf8', secondaryColor: '#14532d', tertiaryColor: '#0f172a', background: '#0d1117', fontSize: '16px' } });
 
   // Init Reveal
   Reveal.initialize({
