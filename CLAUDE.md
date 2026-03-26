@@ -29,3 +29,7 @@ with account-per-tenant on the Phase 2 roadmap. Both approaches are valid.
 - Expect Python + AWS (boto3) tasks or Terraform debugging
 - They provide files, you code in your own environment
 - Focus on explaining decisions, not just writing code
+
+## Commit Rules
+- NEVER include Co-Authored-By lines or any AI attribution in commit messages
+- NEVER reference AI tools by name in any committed file or message
